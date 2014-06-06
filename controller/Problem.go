@@ -43,13 +43,34 @@ func (this *ProblemController) List(w http.ResponseWriter, r *http.Request) {
 	this.Init(w, r)
 
 	args := this.ParseURL(r.URL.Path)
-	var url = "/problem/list"
+	url := "/problem/list"
+	searchUrl := ""
 
+	// Search
+	if v, ok := args["pid"]; ok {
+		searchUrl += "/pid/" + v
+		this.Data["SearchPid"] = true
+		this.Data["SearchValue"] = v
+	}
+	if v, ok := args["title"]; ok {
+		searchUrl += "/title/" + v
+		this.Data["SearchTitle"] = true
+		this.Data["SearchValue"] = v
+	}
+	if v, ok := args["source"]; ok {
+		searchUrl += "/source/" + v
+		this.Data["SearchSource"] = true
+		this.Data["SearchValue"] = v
+	}
+	url += searchUrl
+	this.Data["URL"] = url
+
+	// Page
 	if _, ok := args["page"]; !ok {
 		args["page"] = "1"
 	}
 
-	response, err := http.Post(config.PostHost+"/problem/count", "application/json", nil)
+	response, err := http.Post(config.PostHost+"/problem/count"+searchUrl, "application/json", nil)
 	defer response.Body.Close()
 	if err != nil {
 		http.Error(w, "post error", 500)
@@ -67,7 +88,6 @@ func (this *ProblemController) List(w http.ResponseWriter, r *http.Request) {
 		count = c["count"]
 	}
 	var pageCount = (count-1)/config.ProblemPerPage + 1
-
 	page, err := strconv.Atoi(args["page"])
 	if err != nil {
 		http.Error(w, "args error", 400)
@@ -83,6 +103,7 @@ func (this *ProblemController) List(w http.ResponseWriter, r *http.Request) {
 		this.Data[k] = v
 	}
 
+	//
 	response, err = http.Post(config.PostHost+url, "application/json", nil)
 	defer response.Body.Close()
 	if err != nil {
@@ -166,4 +187,59 @@ func (this *ProblemController) Detail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "tpl error", 500)
 		return
 	}
+}
+
+// URL /problem/submit/pid/<pid>
+
+func (this *ProblemController) Submit(w http.ResponseWriter, r *http.Request) {
+	log.Println("Problem Submit")
+	this.Init(w, r)
+
+	args := this.ParseURL(r.URL.Path)
+	pid, err := strconv.Atoi(args["pid"])
+	if err != nil {
+		http.Error(w, "args error", 400)
+		return
+	}
+
+	uid := this.Uid
+	if uid == "" {
+		w.WriteHeader(401)
+		return
+	}
+
+	one := make(map[string]interface{})
+	one["pid"] = pid
+	one["uid"] = uid
+	one["module"] = config.ModuleP
+	one["mid"] = config.ModuleP
+	/////TODO. Judge
+	one["judge"] = config.JudgePD
+	one["time"] = 1000
+	one["memory"] = 888
+	response, err := http.Post(config.PostHost+"/problem/record/pid/"+strconv.Itoa(pid)+"/action/submit", "application/json", nil)
+	defer response.Body.Close()
+	if err != nil {
+		http.Error(w, "post error", 500)
+		return
+	}
+	/////
+	one["code"] = r.FormValue("code")
+	one["len"] = this.GetCodeLen(len(r.FormValue("code")))
+	one["language"], _ = strconv.Atoi(r.FormValue("compiler_id"))
+
+	reader, err := this.PostReader(&one)
+	if err != nil {
+		http.Error(w, "read error", 500)
+		return
+	}
+
+	response, err = http.Post(config.PostHost+"/solution/insert", "application/json", reader)
+	defer response.Body.Close()
+	if err != nil {
+		http.Error(w, "post error", 500)
+		return
+	}
+
+	w.WriteHeader(200)
 }

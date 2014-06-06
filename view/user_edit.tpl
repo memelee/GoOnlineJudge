@@ -1,5 +1,5 @@
 {{define "content"}}
-	<h1 class="compact">Sign Up</h1>
+	<h1 class="compact">Edit</h1>
 	{{with .Detail}}
 		<form accept-charset="UTF-8" class="new_user" id="new_user">
 		<div style="margin:0;padding:0;display:inline">
@@ -51,8 +51,8 @@
 					$('#user_warning_nick').text('');
 				}			
 			},
-			success: function(response) {
-				var json = eval('('+response+')');
+			success: function(result) {
+				var json = eval('('+result+')');
 				window.location.href = '/user/detail/uid/'+json.uid;
 			}
 		});

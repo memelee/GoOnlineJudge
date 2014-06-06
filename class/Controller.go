@@ -4,7 +4,7 @@ import (
 	"GoOnlineJudge/config"
 	"encoding/json"
 	"io"
-	"log"
+	//"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -26,7 +26,13 @@ func (this *Controller) Init(w http.ResponseWriter, r *http.Request) {
 		this.Data["IsCurrentUser"] = true
 		this.Data["CurrentUser"] = this.Uid
 
-		var err error
+		respone, err := http.Post(config.PostHost+"/user/operate/uid/"+this.Uid, "application/json", nil)
+		defer respone.Body.Close()
+		if err != nil {
+			http.Error(w, "post error", 400)
+			return
+		}
+
 		this.Privilege, err = strconv.Atoi(this.GetSession(w, r, "CurrentPrivilege"))
 		if err != nil {
 			http.Error(w, "args error", 400)
@@ -95,7 +101,6 @@ func (this *Controller) DeleteSession(w http.ResponseWriter, r *http.Request, na
 
 func (this *Controller) GetPage(page int, pageCount int) (ret map[string]interface{}) {
 	ret = make(map[string]interface{})
-	log.Println(page, pageCount) /////////////
 	if page > 1 {
 		ret["IsPreviousPage"] = true
 	}
@@ -105,18 +110,26 @@ func (this *Controller) GetPage(page int, pageCount int) (ret map[string]interfa
 
 	var firstBlock bool = (page-config.PageMidLimit > config.PageHeadLimit+1)
 	var secondBlock bool = (page+config.PageMidLimit < pageCount-config.PageTailLimit)
-	log.Println(firstBlock, secondBlock) ///////////////
+
 	if firstBlock && secondBlock {
 		ret["IsPageHead"] = true
-		ret["PageHeadList"] = []int{1, 2}
-		ret["IsPageMid"] = true
-		s := make([]int, 0, 0)
-		for i := page - config.PageMidLimit; i <= page+config.PageMidLimit; i++ {
-			s = append(s, i)
+		s1 := make([]int, 0, 0)
+		for i := 1; i <= config.PageHeadLimit; i++ {
+			s1 = append(s1, i)
 		}
-		ret["PageMidList"] = s
+		ret["PageHeadList"] = s1
+		ret["IsPageMid"] = true
+		s2 := make([]int, 0, 0)
+		for i := page - config.PageMidLimit; i <= page+config.PageMidLimit; i++ {
+			s2 = append(s2, i)
+		}
+		ret["PageMidList"] = s2
 		ret["IsPageTail"] = true
-		ret["PageTailList"] = []int{pageCount - 1, pageCount}
+		s3 := make([]int, 0, 0)
+		for i := pageCount - config.PageTailLimit + 1; i <= pageCount; i++ {
+			s3 = append(s3, i)
+		}
+		ret["PageTailList"] = s3
 	} else if !firstBlock && !secondBlock {
 		ret["IsPageHead"] = true
 		s := make([]int, 0, 0)
@@ -126,26 +139,37 @@ func (this *Controller) GetPage(page int, pageCount int) (ret map[string]interfa
 		ret["PageHeadList"] = s
 	} else if firstBlock && !secondBlock {
 		ret["IsPageHead"] = true
-		ret["PageHeadList"] = []int{1, 2}
-		ret["IsPageMid"] = true
-		s := make([]int, 0, 0)
-		for i := page - config.PageMidLimit; i <= pageCount; i++ {
-			s = append(s, i)
+		s1 := make([]int, 0, 0)
+		for i := 1; i <= config.PageHeadLimit; i++ {
+			s1 = append(s1, i)
 		}
-		ret["PageMidList"] = s
+		ret["PageHeadList"] = s1
+		ret["IsPageMid"] = true
+		s2 := make([]int, 0, 0)
+		for i := page - config.PageMidLimit; i <= pageCount; i++ {
+			s2 = append(s2, i)
+		}
+		ret["PageMidList"] = s2
 	} else {
 		ret["IsPageHead"] = true
-		s := make([]int, 0, 0)
+		s1 := make([]int, 0, 0)
 		for i := 1; i <= page+config.PageMidLimit; i++ {
-			s = append(s, i)
+			s1 = append(s1, i)
 		}
-		ret["PageHeadList"] = s
+		ret["PageHeadList"] = s1
 		ret["IsPageTail"] = true
-		ret["PageTailList"] = []int{pageCount - 1, pageCount}
+		s2 := make([]int, 0, 0)
+		for i := pageCount - config.PageTailLimit + 1; i <= pageCount; i++ {
+			s2 = append(s2, i)
+		}
+		ret["PageTailList"] = s2
 	}
+
 	ret["CurrentPage"] = int(page)
-	for k, v := range ret {
-		log.Println(k, v)
-	}
+	return
+}
+
+func (this *Controller) GetCodeLen(strLen int) (codeLen int) {
+	codeLen = strLen
 	return
 }
